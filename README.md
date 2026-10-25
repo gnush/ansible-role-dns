@@ -4,7 +4,8 @@ Installs and configures [Bind9](https://www.isc.org/bind/) as a primary or secon
 
 ## Requirements
 
-- Ubuntu
+- Ubuntu >= 22.04 
+  Debian >= 12
 - Ansible >= 2.11
 - Root privileges (`become: true`)
 - Inventory group `dns_nodes` with `dns_role` set per host; zone transfers and notifies are derived from it
