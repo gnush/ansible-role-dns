@@ -13,19 +13,32 @@ Installs and configures [Bind9](https://www.isc.org/bind/) as a primary or secon
 
 Defined in `defaults/main.yml`:
 
-| Variable                    | Default                    | Description                                         |
-|-----------------------------|----------------------------|-----------------------------------------------------|
-| `dns_role`                  | `primary`                  | `primary` or `secondary`                            |
-| `dns_zones_dir`             | `{{ inventory_dir }}/zones` | Directory with one `*.yml` per zone                |
-| `dns_listen_on_v4`          | `["any"]`                  | IPv4 addresses to listen on                         |
-| `dns_listen_on_v6`          | `["any"]`                  | IPv6 addresses to listen on                         |
-| `dns_allow_query`           | `["any"]`                  | Clients allowed to query                            |
-| `dns_allow_recursion`       | `localnets`, `localhost`   | Clients allowed to query recursively                |
-| `dns_forwarders`            | `[]`                       | Upstream resolvers                                  |
-| `dns_split_horizon_enabled` | `false`                    | Enable per-network answers, see below               |
-| `dns_split_records`         | `[]`                       | Records with per-network answers                    |
+| Variable                    | Default                     | Description                                         |
+|-----------------------------|-----------------------------|-----------------------------------------------------|
+| `dns_role`                  | `primary`                   | `primary` or `secondary`                            |
+| `dns_zones_dir`             | `{{ inventory_dir }}/zones` | Directory with one `*.yml` per zone                 |
+| `dns_listen_on_v4`          | `["any"]`                   | IPv4 addresses to listen on                         |
+| `dns_listen_on_v6`          | `["any"]`                   | IPv6 addresses to listen on                         |
+| `dns_allow_query`           | `["any"]`                   | Clients allowed to query                            |
+| `dns_allow_recursion`       | `localnets`, `localhost`    | Clients allowed to query recursively                |
+| `dns_forwarders`            | `[]`                        | Upstream resolvers                                  |
+| `dns_split_horizon_enabled` | `false`                     | Enable per-network answers, see below               |
+| `dns_split_records`         | `[]`                        | Records with per-network answers                    |
 
-## Example Playbook
+## Example Setup
+
+```
+inventory/
+├── hosts.yml
+├── group_vars/
+│   └── dns_nodes.yml        # role variables, e.g. dns_split_records
+└── zones/                   # dns_zones_dir
+    ├── example.internal.yml
+    └── 0.168.192.in-addr.arpa.yml
+site.yml
+```
+
+`site.yml`:
 
 ```yaml
 - hosts: dns_nodes
@@ -33,6 +46,8 @@ Defined in `defaults/main.yml`:
   roles:
     - dns
 ```
+
+`inventory/hosts.yml`:
 
 ```yaml
 dns_nodes:
@@ -47,7 +62,9 @@ dns_nodes:
 
 ## Zones
 
-Every `*.yml` in `dns_zones_dir` becomes one zone. Seed from `examples/zones/`:
+Every `*.yml` in `dns_zones_dir` becomes one zone. Seed from `examples/zones/`.
+
+`inventory/zones/example.internal.yml`:
 
 ```yaml
 name: "example.internal"
@@ -73,6 +90,8 @@ awk '{ print "- { name: \"""$1"\", class: \""$2"\", type: \""$3"\", value: \""$4
 Answers a record differently depending on the client's network, e.g. a service reachable
 at a different address in each segment. Clients outside all listed networks get the
 regular record.
+
+`inventory/group_vars/dns_nodes.yml`:
 
 ```yaml
 dns_split_horizon_enabled: true
