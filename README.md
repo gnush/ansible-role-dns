@@ -4,7 +4,7 @@ Installs and configures [Bind9](https://www.isc.org/bind/) as a primary or secon
 
 ## Requirements
 
-- Ubuntu >= 22.04 
+- Ubuntu >= 22.04  
   Debian >= 12
 - Ansible >= 2.11
 - Root privileges (`become: true`)
