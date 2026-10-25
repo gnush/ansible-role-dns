@@ -1,0 +1,33 @@
+// Managed by Ansible (role: dns)
+
+options {
+        directory "/var/cache/bind";
+
+        listen-on port 53 { {{ dns_listen_on_v4 | join("; ") }}; };
+        listen-on-v6 { {{ dns_listen_on_v6 | join("; ") }}; };
+
+        allow-query { {{ dns_allow_query | join("; ") }}; };
+        allow-recursion { {{ dns_allow_recursion | join("; ") }}; };
+
+{% if dns_forwarders | length > 0 %}
+        forwarders {
+{% for f in dns_forwarders %}
+                {{ f }};
+{% endfor %}
+        };
+{% endif %}
+
+        recursion yes;
+        dnssec-validation auto;
+
+        auth-nxdomain no;    // conform to RFC1035
+};
+
+logging {
+        channel default_syslog {
+                syslog daemon;
+                severity info;
+        };
+        category default { default_syslog; };
+        category queries { default_syslog; };
+};

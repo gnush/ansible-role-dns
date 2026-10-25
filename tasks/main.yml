@@ -1,0 +1,69 @@
+---
+- name: Install Bind9 packages
+  ansible.builtin.package:
+    name: "{{ dns_bind_packages }}"
+    state: present
+
+- name: Ensure bind config directories exist
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ dns_bind_etc_dir }}", group: "bind", mode: "0755" }
+    - { path: "{{ dns_bind_zones_dir }}", group: "bind", mode: "0750" }
+
+- name: Deploy named.conf.options
+  ansible.builtin.template:
+    src: "{{ role_path }}/config/named.conf.options.j2"
+    dest: "{{ dns_bind_etc_dir }}/named.conf.options"
+    owner: root
+    group: bind
+    mode: "0644"
+    validate: "named-checkconf %s"
+  notify: Restart bind9
+
+- name: Initialize dns zones
+  ansible.builtin.set_fact:
+    dns_zones: []
+
+- name: Gather dns zones
+  ansible.builtin.set_fact:
+    dns_zones: "{{ (dns_zones | default([])) + [lookup('file', item) | from_yaml] }}"
+  with_fileglob: "{{ role_path }}/defaults/zones/*.yml"
+
+- name: Deploy named.conf.local (zones)
+  ansible.builtin.template:
+    src: "{{ role_path }}/config/named.conf.local.j2"
+    dest: "{{ dns_bind_etc_dir }}/named.conf.local"
+    owner: root
+    group: bind
+    mode: "0644"
+    validate: "named-checkconf %s"
+  notify: Restart bind9
+
+- name: Ensure Unix Timestamp is available
+  ansible.builtin.setup:
+    gather_subset:
+      - 'date_time'
+
+- name: Deploy master zone files (primary only)
+  ansible.builtin.template:
+    src: "{{ role_path }}/config/zone.db.j2"
+    dest: "{{ dns_bind_zones_dir }}/db.{{ item.name }}"
+    owner: root
+    group: bind
+    mode: "0640"
+    validate: "named-checkzone {{ item.name }} %s"
+  loop: "{{ dns_zones }}"
+  when: dns_role == "primary"
+  notify: Restart bind9
+
+- name: Ensure bind9 service enabled and started
+  ansible.builtin.service:
+    name: "{{ dns_bind_service_name }}"
+    enabled: true
+    state: started
+...

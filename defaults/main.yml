@@ -1,0 +1,30 @@
+---
+dns_role: primary  # expected values: primary|secondary
+
+# Service/package defaults (Debian/Ubuntu)
+dns_bind_service_name: bind9
+dns_bind_packages:
+  - bind9
+  - bind9utils
+  - dnsutils
+
+# Basic daemon options
+dns_listen_on_v4: ["any"]
+dns_listen_on_v6: ["any"]
+dns_allow_query: ["any"]
+dns_allow_recursion:
+  - "localnets"
+  - "localhost"
+  # - 10.0.0.0/8
+  # - 172.16.0.0/12
+  # - 192.168.0.0/16
+  # - 169.254.0.0/16
+
+dns_forwarders:
+  # - "1.1.1.1" # public cloudflare
+  # - "8.8.8.8" # public google
+
+# Paths (Debian/Ubuntu layout)
+dns_bind_etc_dir: /etc/bind
+dns_bind_zones_dir: /etc/bind/zones
+...

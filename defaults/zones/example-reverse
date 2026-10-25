@@ -1,0 +1,17 @@
+---
+name: "0.168.192.in-addr.arpa"
+ttl: 60
+soa:
+  mname: "ns1.example.internal."
+  rname: "hostmaster.example.internal."
+  refresh: 43200
+  retry: 3600
+  expire: 2419200
+  error_ttl: 259200
+ns:
+  - "ns1.example.internal."
+  - "ns2.example.internal."
+records:
+  - { name: "8", class: "IN", type: "PTR", value: "ns1.example.internal." }
+  - { name: "9", class: "IN", type: "PTR", value: "ns2.example.internal." }
+...

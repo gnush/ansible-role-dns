@@ -1,0 +1,23 @@
+; Managed by Ansible (role: dns)
+;
+; Zone: {{ item.name }}
+;
+
+$TTL {{ item.ttl | default(3600) }}
+@	IN	SOA {{ (item.soa.mname | default('ns1.' ~ item.name ~ '.')) }} {{ (item.soa.rname | default('hostmaster.' ~ item.name ~ '.')) }} (
+		{{ ansible_facts['date_time']['epoch'] }} ; Serial
+		{{ item.soa.refresh | default(3600) }} ; Refresh
+		{{ item.soa.retry | default(900) }} ; Retry
+		{{ item.soa.expire | default(604800) }} ; Expire
+		{{ item.soa.error_ttl | default(86400) }} ; Negative Cache TTL
+)
+
+; Nameservers
+{% for ns in (item.ns | default([])) %}
+@	IN	NS	{{ ns }}
+{% endfor %}
+
+; Records
+{% for r in (item.records | default([])) %}
+{{ r.name }}	{{ r.class }}	{{ r.type }}	{{ r.value }}
+{% endfor %}

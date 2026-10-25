@@ -1,0 +1,40 @@
+// Managed by Ansible (role: dns)
+
+// Derive primary/secondary IPs from inventory group `dns_nodes`.
+{% set dns_nodes = groups.get('dns_nodes', []) %}
+{% set primary_hosts = [] %}
+{% set secondary_hosts = [] %}
+{% for h in dns_nodes %}
+{%   if hostvars[h].get('dns_role', '') == 'primary' %}
+{%     set _ = primary_hosts.append(h) %}
+{%   elif hostvars[h].get('dns_role', '') == 'secondary' %}
+{%     set _ = secondary_hosts.append(h) %}
+{%   endif %}
+{% endfor %}
+{% set primary_ips = [] %}
+{% set secondary_ips = [] %}
+{% for h in primary_hosts %}
+{%   set _ = primary_ips.append(hostvars[h].get('ansible_host', h)) %}
+{% endfor %}
+{% for h in secondary_hosts %}
+{%   set _ = secondary_ips.append(hostvars[h].get('ansible_host', h)) %}
+{% endfor %}
+
+{% for z in dns_zones %}
+zone "{{ z.name }}" {
+{% if dns_role == "primary" %}
+        type master;
+        file "{{ dns_bind_zones_dir }}/db.{{ z.name }}";
+        allow-transfer { {% if secondary_ips|length > 0 %}{{ secondary_ips | join("; ") }};{% else %}none;{% endif %} };
+        notify yes;
+{% if secondary_ips|length > 0 %}
+        also-notify { {{ secondary_ips | join("; ") }}; };
+{% endif %}
+{% else %}
+        type slave;
+        masters { {% if primary_ips|length > 0 %}{{ primary_ips[0] }};{% else %}127.0.0.1;{% endif %} };
+        file "/var/cache/bind/db.{{ z.name }}";
+{% endif %}
+};
+
+{% endfor %}

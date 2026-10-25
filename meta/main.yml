@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  role_name: dns
+  namespace: core
+  author: gnush
+  description: Bind9 DNS server (primary/secondary) configuration.
+  license: MIT
+  min_ansible_version: "2.11"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - all
+  galaxy_tags:
+    - dns
+    - bind9
+...
