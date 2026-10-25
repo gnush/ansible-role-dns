@@ -1,0 +1,69 @@
+---
+# Adds a record to one zone and re-applies the role: only that zone's serial may change.
+- name: Side effect
+  hosts: all
+  vars:
+    dns_zones_dir: "{{ dns_side_effect_dir.path }}"
+  tasks:
+    - name: Read serials before change
+      ansible.builtin.command: "dig +short @127.0.0.1 {{ item }} SOA"
+      loop: [example.internal, 0.168.192.in-addr.arpa]
+      register: dns_soa_before
+      changed_when: false
+
+    - name: Create temp zones dir
+      ansible.builtin.tempfile:
+        state: directory
+      delegate_to: localhost
+      run_once: true
+      register: dns_side_effect_dir
+
+    - name: Copy zones
+      ansible.builtin.copy:
+        src: "{{ lookup('env', 'MOLECULE_SCENARIO_DIRECTORY') }}/zones/"
+        dest: "{{ dns_side_effect_dir.path }}/"
+        mode: "0644"
+      delegate_to: localhost
+      run_once: true
+
+    - name: Add record
+      ansible.builtin.lineinfile:
+        path: "{{ dns_side_effect_dir.path }}/example.internal.yml"
+        insertafter: 'name: "s3"'
+        line: '  - { name: "added", class: "IN", type: "A", value: "192.168.0.200" }'
+      delegate_to: localhost
+      run_once: true
+
+    - name: Apply role
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+
+    - name: Flush handlers
+      ansible.builtin.meta: flush_handlers
+
+    - name: Read serials after change
+      ansible.builtin.command: "dig +short @127.0.0.1 {{ item }} SOA"
+      loop: [example.internal, 0.168.192.in-addr.arpa]
+      register: dns_soa_after
+      changed_when: false
+
+    - name: Resolve added record
+      ansible.builtin.command: dig +short @127.0.0.1 added.example.internal A
+      register: dns_added
+      changed_when: false
+      failed_when: dns_added.stdout != "192.168.0.200"
+
+    # SOA rdata: mname rname serial refresh retry expire minimum
+    - name: Check serials
+      ansible.builtin.assert:
+        that:
+          - dns_soa_after.results[0].stdout.split()[2] | int > dns_soa_before.results[0].stdout.split()[2] | int
+          - dns_soa_after.results[1].stdout.split()[2] == dns_soa_before.results[1].stdout.split()[2]
+
+    - name: Remove temp zones dir
+      ansible.builtin.file:
+        path: "{{ dns_side_effect_dir.path }}"
+        state: absent
+      delegate_to: localhost
+      run_once: true
+...

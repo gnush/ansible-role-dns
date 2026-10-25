@@ -1,0 +1,10 @@
+---
+- name: Converge
+  hosts: all
+  vars:
+    dns_zones_dir: "{{ lookup('env', 'MOLECULE_SCENARIO_DIRECTORY') }}/zones"
+  tasks:
+    - name: Apply role
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"
+...

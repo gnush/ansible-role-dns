@@ -1,0 +1,29 @@
+---
+- name: Verify
+  hosts: all
+  tasks:
+    - name: Check config
+      ansible.builtin.command: named-checkconf -z /etc/bind/named.conf
+      changed_when: false
+
+    - name: Populate service facts
+      ansible.builtin.service_facts:
+
+    - name: Check named is enabled and running
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['named.service'].status == 'enabled'
+          - ansible_facts.services['named.service'].state == 'running'
+
+    - name: Resolve forward record
+      ansible.builtin.command: dig +short @127.0.0.1 s3.example.internal A
+      register: dns_forward
+      changed_when: false
+      failed_when: dns_forward.stdout != "192.168.0.100"
+
+    - name: Resolve reverse record
+      ansible.builtin.command: dig +short @127.0.0.1 -x 192.168.0.8
+      register: dns_reverse
+      changed_when: false
+      failed_when: dns_reverse.stdout != "ns1.example.internal."
+...

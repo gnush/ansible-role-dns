@@ -1,0 +1,21 @@
+---
+# Example Zone Configuration
+name: "example.internal"
+ttl: 3600
+soa:
+  mname: "ns1.example.internal."
+  rname: "hostmaster.example.internal."
+  refresh: 3600
+  retry: 900
+  expire: 604800
+  error_ttl: 86400
+ns:
+  - "ns1.example.internal."
+  - "ns2.example.internal."
+# To convert the records of an existing bind9 zone db, pipe _only_ the records into awk
+# awk '{ print "- { name: \"""$1"\", class: \""$2"\", type: \""$3"\", value: \""$4"\" }" }'
+records:
+  - { name: "ns1", class: "IN", type: "A", value: "192.168.0.8" }
+  - { name: "ns2", class: "IN", type: "A", value: "192.168.0.9" }
+  - { name: "s3", class: "IN", type: "A", value: "192.168.0.100" }
+...
