@@ -16,6 +16,7 @@ Defined in `defaults/main.yml`:
 | Variable                    | Default                    | Description                                         |
 |-----------------------------|----------------------------|-----------------------------------------------------|
 | `dns_role`                  | `primary`                  | `primary` or `secondary`                            |
+| `dns_zones_dir`             | `{{ inventory_dir }}/zones` | Directory with one `*.yml` per zone                |
 | `dns_listen_on_v4`          | `["any"]`                  | IPv4 addresses to listen on                         |
 | `dns_listen_on_v6`          | `["any"]`                  | IPv6 addresses to listen on                         |
 | `dns_allow_query`           | `["any"]`                  | Clients allowed to query                            |
@@ -46,7 +47,7 @@ dns_nodes:
 
 ## Zones
 
-Every `defaults/zones/*.yml` becomes one zone, see `defaults/zones/example`:
+Every `*.yml` in `dns_zones_dir` becomes one zone. Seed from `examples/zones/`:
 
 ```yaml
 name: "example.internal"

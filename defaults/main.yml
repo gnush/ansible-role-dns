@@ -1,6 +1,9 @@
 ---
 dns_role: primary  # expected values: primary|secondary
 
+# One <zone>.yml per zone; seed from examples/zones/
+dns_zones_dir: "{{ inventory_dir }}/zones"
+
 # Service/package defaults (Debian/Ubuntu)
 dns_bind_service_name: bind9
 dns_bind_packages:
@@ -25,7 +28,7 @@ dns_forwarders: []
   # - "8.8.8.8" # public google
 
 # Split-horizon: answer depends on the client's source network (one BIND view per network).
-# Clients outside all listed networks get the regular record from defaults/zones/.
+# Clients outside all listed networks get the regular record from dns_zones_dir.
 dns_split_horizon_enabled: false
 dns_split_records: []
   # - name: s3.example.internal

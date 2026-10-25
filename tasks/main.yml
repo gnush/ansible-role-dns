@@ -32,7 +32,7 @@
 - name: Gather dns zones
   ansible.builtin.set_fact:
     dns_zones: "{{ (dns_zones | default([])) + [lookup('file', item) | from_yaml] }}"
-  with_fileglob: "{{ role_path }}/defaults/zones/*.yml"
+  with_fileglob: "{{ dns_zones_dir }}/*.yml"
 
 - name: Ensure Unix Timestamp is available
   ansible.builtin.setup:
