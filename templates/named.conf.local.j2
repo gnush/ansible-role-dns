@@ -50,7 +50,7 @@ zone "{{ z.name }}" {
 {% for v in all_views %}
 view "{{ v.name }}" {
     match-clients { {{ v.cidr }}; };
-    include "{{ dns_bind_etc_dir }}/named.conf.default-zones";
+    include "{{ dns_bind_etc_dir }}/{{ dns_bind_default_zones_file }}";
 
 {% for r in v.records %}
     zone "{{ r.name }}" {

@@ -4,6 +4,18 @@
     name: "{{ dns_bind_packages }}"
     state: present
 
+- name: Populate package facts
+  ansible.builtin.package_facts:
+
+# BIND >= 9.20 packages replace named.conf.default-zones with named.conf.root-hints.
+# Version carries a Debian epoch ("1:9.20..."), which the version test misreads.
+- name: Select default zones file
+  ansible.builtin.set_fact:
+    dns_bind_default_zones_file: >-
+      {{ 'named.conf.root-hints'
+         if ansible_facts.packages['bind9'][0].version.split(':')[-1] is version('9.20', '>=')
+         else 'named.conf.default-zones' }}
+
 - name: Ensure bind config directories exist
   ansible.builtin.file:
     path: "{{ item.path }}"
@@ -99,17 +111,58 @@
     validate: "named-checkconf %s"
   notify: Restart bind9
 
-- name: Deploy master zone files (primary only)
-  ansible.builtin.template:
-    src: zone.db.j2
-    dest: "{{ dns_bind_zones_dir }}/db.{{ item.name }}"
-    owner: root
-    group: bind
-    mode: "0640"
-    validate: "named-checkzone {{ item.name }} %s"
-  loop: "{{ dns_zones }}"
+# Serial is bumped only when the zone content changes
+- name: Roll out master zones
   when: dns_role == "primary"
-  notify: Restart bind9
+  block:
+    - name: Read deployed zone files
+      ansible.builtin.slurp:
+        src: "{{ dns_bind_zones_dir }}/db.{{ item.name }}"
+      loop: "{{ dns_zones }}"
+      register: dns_zone_current
+      failed_when: false
+
+    - name: Collect deployed zone serials
+      ansible.builtin.set_fact:
+        dns_zone_serials: >-
+          {{ dns_zone_serials | default({}) | combine({item.item.name:
+             item.content | b64decode | regex_search('(\d+) ; Serial', '\1') | first}) }}
+      loop: "{{ dns_zone_current.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: item.content is defined
+
+    # check mode with the deployed serial
+    - name: Compare zone content
+      ansible.builtin.template:
+        src: zone.db.j2
+        dest: "{{ dns_bind_zones_dir }}/db.{{ item.name }}"
+        owner: root
+        group: bind
+        mode: "0640"
+      vars:
+        dns_zone_serial: "{{ dns_zone_serials[item.name] | default(ansible_facts['date_time']['epoch']) }}"
+      loop: "{{ dns_zones }}"
+      check_mode: true
+      register: dns_zone_diff
+
+    # idx pairs each zone with its Compare result; both tasks loop over dns_zones in the same order
+    - name: Deploy master zone files
+      ansible.builtin.template:
+        src: zone.db.j2
+        dest: "{{ dns_bind_zones_dir }}/db.{{ item.name }}"
+        owner: root
+        group: bind
+        mode: "0640"
+        validate: "named-checkzone {{ item.name }} %s"
+      vars:
+        dns_zone_serial: >-
+          {{ ansible_facts['date_time']['epoch'] if dns_zone_diff.results[idx].changed
+             else dns_zone_serials[item.name] }}
+      loop: "{{ dns_zones }}"
+      loop_control:
+        index_var: idx
+      notify: Restart bind9
 
 # Deployed last: validates the full config including the files above.
 - name: Deploy named.conf

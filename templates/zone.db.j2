@@ -5,7 +5,7 @@
 
 $TTL {{ item.ttl | default(3600) }}
 @	IN	SOA {{ (item.soa.mname | default('ns1.' ~ item.name ~ '.')) }} {{ (item.soa.rname | default('hostmaster.' ~ item.name ~ '.')) }} (
-		{{ ansible_facts['date_time']['epoch'] }} ; Serial
+		{{ dns_zone_serial }} ; Serial
 		{{ item.soa.refresh | default(3600) }} ; Refresh
 		{{ item.soa.retry | default(900) }} ; Retry
 		{{ item.soa.expire | default(604800) }} ; Expire
