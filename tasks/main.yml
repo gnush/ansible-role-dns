@@ -17,7 +17,7 @@
 
 - name: Deploy named.conf.options
   ansible.builtin.template:
-    src: "{{ role_path }}/config/named.conf.options.j2"
+    src: named.conf.options.j2
     dest: "{{ dns_bind_etc_dir }}/named.conf.options"
     owner: root
     group: bind
@@ -80,7 +80,7 @@
     # Rendered on primary AND secondary: override zones are not transferred.
     - name: Deploy split-horizon override zone files
       ansible.builtin.template:
-        src: "{{ role_path }}/config/split.db.j2"
+        src: split.db.j2
         dest: "{{ dns_bind_zones_dir }}/views/{{ item.0.name }}/db.{{ item.1.name }}"
         owner: root
         group: bind
@@ -91,7 +91,7 @@
 
 - name: Deploy named.conf.local (zones)
   ansible.builtin.template:
-    src: "{{ role_path }}/config/named.conf.local.j2"
+    src: named.conf.local.j2
     dest: "{{ dns_bind_etc_dir }}/named.conf.local"
     owner: root
     group: bind
@@ -101,7 +101,7 @@
 
 - name: Deploy master zone files (primary only)
   ansible.builtin.template:
-    src: "{{ role_path }}/config/zone.db.j2"
+    src: zone.db.j2
     dest: "{{ dns_bind_zones_dir }}/db.{{ item.name }}"
     owner: root
     group: bind
@@ -114,7 +114,7 @@
 # Deployed last: validates the full config including the files above.
 - name: Deploy named.conf
   ansible.builtin.template:
-    src: "{{ role_path }}/config/named.conf.j2"
+    src: named.conf.j2
     dest: "{{ dns_bind_etc_dir }}/named.conf"
     owner: root
     group: bind
