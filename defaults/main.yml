@@ -8,8 +8,8 @@ dns_zones_dir: "{{ inventory_dir }}/zones"
 dns_bind_service_name: bind9
 dns_bind_packages:
   - bind9
-  - bind9utils
-  - dnsutils
+  - bind9-utils
+  - bind9-dnsutils
 
 # Basic daemon options
 dns_listen_on_v4: ["any"]
