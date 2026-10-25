@@ -1,0 +1,9 @@
+// Managed by Ansible (role: dns)
+
+include "{{ dns_bind_etc_dir }}/named.conf.options";
+include "{{ dns_bind_etc_dir }}/named.conf.local";
+{% if dns_split_views | default([]) | length == 0 %}
+include "{{ dns_bind_etc_dir }}/named.conf.default-zones";
+{% else %}
+// default zones are included in every view (named.conf.local)
+{% endif %}

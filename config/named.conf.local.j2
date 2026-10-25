@@ -19,8 +19,7 @@
 {% for h in secondary_hosts %}
 {%   set _ = secondary_ips.append(hostvars[h].get('ansible_host', h)) %}
 {% endfor %}
-
-{% for z in dns_zones %}
+{% macro zone_def(z, primary_ips, secondary_ips) %}
 zone "{{ z.name }}" {
 {% if dns_role == "primary" %}
         type master;
@@ -36,5 +35,39 @@ zone "{{ z.name }}" {
         file "/var/cache/bind/db.{{ z.name }}";
 {% endif %}
 };
+{% endmacro %}
+
+{% if dns_split_views | default([]) | length == 0 %}
+{% for z in dns_zones %}
+{{ zone_def(z, primary_ips, secondary_ips) }}
+{% endfor %}
+{% else %}
+// Split-horizon: one view per client network (dns_split_records), most specific first.
+// Regular zones are defined in the first view and shared by all later views via in-view
+// (in-view may only reference a view defined earlier).
+// Override zones are master on primary AND secondary; they are not transferred.
+{% set all_views = dns_split_views + [{'name': 'default', 'cidr': 'any', 'records': []}] %}
+{% for v in all_views %}
+view "{{ v.name }}" {
+    match-clients { {{ v.cidr }}; };
+    include "{{ dns_bind_etc_dir }}/named.conf.default-zones";
+
+{% for r in v.records %}
+    zone "{{ r.name }}" {
+        type master;
+        file "{{ dns_bind_zones_dir }}/views/{{ v.name }}/db.{{ r.name }}";
+        notify no;
+    };
 
 {% endfor %}
+{% for z in dns_zones %}
+{% if v.name == all_views[0].name %}
+    {{ zone_def(z, primary_ips, secondary_ips) | indent(4) }}
+{% else %}
+    zone "{{ z.name }}" { in-view "{{ all_views[0].name }}"; };
+{% endif %}
+{% endfor %}
+};
+
+{% endfor %}
+{% endif %}

@@ -1,0 +1,24 @@
+; Managed by Ansible (role: dns)
+;
+; Split-horizon override zone: {{ item.1.name }}
+; View: {{ item.0.name }} ({{ item.0.cidr }})
+;
+{% set parent = item.1.name.split('.', 1)[1] %}
+{% set pz = dns_zones | selectattr('name', 'equalto', parent) | list %}
+{% set pz = pz[0] if pz else {} %}
+
+$TTL {{ item.1.ttl | default(300) }}
+@	IN	SOA {{ (pz.soa | default({})).mname | default('ns1.' ~ parent ~ '.') }} {{ (pz.soa | default({})).rname | default('hostmaster.' ~ parent ~ '.') }} (
+		{{ ansible_facts['date_time']['epoch'] }} ; Serial
+		3600 ; Refresh
+		900 ; Retry
+		604800 ; Expire
+		300 ; Negative Cache TTL
+)
+
+{% for ns in (pz.ns | default(['ns1.' ~ parent ~ '.'])) %}
+@	IN	NS	{{ ns }}
+{% endfor %}
+{% for v in ([item.1.value] if item.1.value is string else item.1.value) %}
+@	IN	{{ item.1.type | default('A') }}	{{ v }}
+{% endfor %}

@@ -34,6 +34,61 @@
     dns_zones: "{{ (dns_zones | default([])) + [lookup('file', item) | from_yaml] }}"
   with_fileglob: "{{ role_path }}/defaults/zones/*.yml"
 
+- name: Ensure Unix Timestamp is available
+  ansible.builtin.setup:
+    gather_subset:
+      - 'date_time'
+
+# Single guard for split-horizon: enabled without records is a noop. The templates
+# render views only if this block produced dns_split_views.
+- name: Roll out split-horizon views
+  when:
+    - dns_split_horizon_enabled | bool
+    - dns_split_records | length > 0
+  block:
+    - name: Build split-horizon views (one per client network, most specific first)
+      ansible.builtin.set_fact:
+        dns_split_views: >-
+          {%- set nets = [] -%}
+          {%- for r in dns_split_records -%}
+          {%-   for c in r.answers -%}
+          {%-     if c not in nets -%}{%- set _ = nets.append(c) -%}{%- endif -%}
+          {%-   endfor -%}
+          {%- endfor -%}
+          {%- set views = [] -%}
+          {%- for c in nets -%}
+          {%-   set recs = [] -%}
+          {%-   for r in dns_split_records if c in r.answers -%}
+          {%-     set _ = recs.append({'name': r.name, 'type': r.type | default('A'),
+                                       'ttl': r.ttl | default(300), 'value': r.answers[c]}) -%}
+          {%-   endfor -%}
+          {%-   set _ = views.append({'name': 'seg-' ~ c | replace('.', '-') | replace('/', '-'),
+                                      'cidr': c, 'prefix': c.split('/')[1] | int,
+                                      'records': recs}) -%}
+          {%- endfor -%}
+          {{ views | sort(attribute='prefix', reverse=true) }}
+
+    - name: Ensure split-horizon view directories exist
+      ansible.builtin.file:
+        path: "{{ dns_bind_zones_dir }}/views/{{ item.name }}"
+        state: directory
+        owner: root
+        group: bind
+        mode: "0750"
+      loop: "{{ dns_split_views }}"
+
+    # Rendered on primary AND secondary: override zones are not transferred.
+    - name: Deploy split-horizon override zone files
+      ansible.builtin.template:
+        src: "{{ role_path }}/config/split.db.j2"
+        dest: "{{ dns_bind_zones_dir }}/views/{{ item.0.name }}/db.{{ item.1.name }}"
+        owner: root
+        group: bind
+        mode: "0640"
+        validate: "named-checkzone {{ item.1.name }} %s"
+      loop: "{{ dns_split_views | subelements('records') }}"
+      notify: Restart bind9
+
 - name: Deploy named.conf.local (zones)
   ansible.builtin.template:
     src: "{{ role_path }}/config/named.conf.local.j2"
@@ -43,11 +98,6 @@
     mode: "0644"
     validate: "named-checkconf %s"
   notify: Restart bind9
-
-- name: Ensure Unix Timestamp is available
-  ansible.builtin.setup:
-    gather_subset:
-      - 'date_time'
 
 - name: Deploy master zone files (primary only)
   ansible.builtin.template:
@@ -60,6 +110,22 @@
   loop: "{{ dns_zones }}"
   when: dns_role == "primary"
   notify: Restart bind9
+
+# Deployed last: validates the full config including the files above.
+- name: Deploy named.conf
+  ansible.builtin.template:
+    src: "{{ role_path }}/config/named.conf.j2"
+    dest: "{{ dns_bind_etc_dir }}/named.conf"
+    owner: root
+    group: bind
+    mode: "0644"
+    validate: "named-checkconf -z %s"
+  notify: Restart bind9
+
+# The fragment validations above cannot see view/top-level conflicts.
+- name: Check full bind configuration
+  ansible.builtin.command: "named-checkconf -z {{ dns_bind_etc_dir }}/named.conf"
+  changed_when: false
 
 - name: Ensure bind9 service enabled and started
   ansible.builtin.service:

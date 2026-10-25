@@ -24,6 +24,16 @@ dns_forwarders:
   # - "1.1.1.1" # public cloudflare
   # - "8.8.8.8" # public google
 
+# Split-horizon: answer depends on the client's source network (one BIND view per network).
+# Clients outside all listed networks get the regular record from defaults/zones/.
+dns_split_horizon_enabled: true
+dns_split_records:
+  # - name: s3.example.internal
+  #   type: A
+  #   ttl: 300
+  #   answers:
+  #     "192.168.1.0/24": 192.168.1.100
+
 # Paths (Debian/Ubuntu layout)
 dns_bind_etc_dir: /etc/bind
 dns_bind_zones_dir: /etc/bind/zones
