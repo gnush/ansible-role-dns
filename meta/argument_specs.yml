@@ -1,0 +1,26 @@
+---
+argument_specs:
+  main:
+    options:
+      dns_forwarders:
+        type: list
+        elements: str
+        default: []
+      dns_split_records:
+        type: list
+        elements: dict
+        default: []
+        options:
+          name:
+            type: str
+            required: true
+          type:
+            type: str
+            default: A
+          ttl:
+            type: int
+            default: 300
+          answers:
+            type: dict
+            required: true
+...
